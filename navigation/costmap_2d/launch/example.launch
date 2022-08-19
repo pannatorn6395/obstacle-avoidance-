@@ -1,0 +1,48 @@
+<launch>
+  <!-- 
+  NOTE: You'll need to bring up something that publishes sensor data (see
+  rosstage), something that publishes a map (see map_server), and something to
+  visualize a costmap (see nav_view), to see things work.
+
+  Also, on a real robot, you'd want to set the "use_sim_time" parameter to false, or just not set it.
+  -->
+
+  <arg name="offline" default="false"/>
+    <include unless="$(arg offline)" file="$(find realsense2_camera)/launch/rs_camera.launch">
+        <arg name="align_depth" value="true"/>
+        <arg name="unite_imu_method" value="linear_interpolation"/>
+        <arg name="enable_gyro" value="true"/>
+        <arg name="enable_accel" value="true"/>
+        <arg name="json_file_path" value="/home/pannatorn/rs.json"/>
+
+
+    </include>
+
+  <node pkg="imu_filter_madgwick" type="imu_filter_node" name="ImuFilter">
+      <param name="use_mag" type="bool" value="false" />
+      <param name="_publish_tf" type="bool" value="false" />
+      <param name="_world_frame" type="string" value="enu" />
+      <remap from="/imu/data_raw" to="/camera/imu"/>
+  </node>
+
+  <node type="rviz" name="rviz" pkg="rviz" args="-d $(find realsense2_camera)/rviz/config_file.rviz" />
+  
+  <param name="/use_sim_time" value="false"/>
+  
+  <!-- <arg name='argument' /> -->
+  <node pkg="tf2_ros" type="static_transform_publisher" name="camera_to_base" args="0 0 0.5  0 0.785 0 base_link camera_link" />
+  <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="camera_to_base" output="screen" args="$(arg argument)" /> -->
+  <!-- roslaunch tf2_ros static_transform_publisher.launch argument:={{0 0 0.2 -0.597 0.585 -0.406 0.367 base_link camera_link}} -->
+  
+  <!-- Publishes the voxel grid to rviz for display -->
+  <node pkg="costmap_2d" type="costmap_2d_markers" name="voxel_visualizer">
+    <remap from="voxel_grid" to="costmap/voxel_grid"/>
+  </node>
+
+
+  <!-- Run the costmap node -->
+  <node name="costmap_node" pkg="costmap_2d" type="costmap_2d_node" >
+    <rosparam file="$(find costmap_2d)/launch/example_params.yaml" command="load" ns="costmap" />
+  </node>
+
+</launch>
